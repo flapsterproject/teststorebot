@@ -12,7 +12,6 @@
 // No internet access beyond Telegram API
 
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const TOKEN = Deno.env.get("BOT_TOKEN")!;
 if (!TOKEN) throw new Error("BOT_TOKEN env var is required");
