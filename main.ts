@@ -45,7 +45,7 @@ async function getHottestNews(): Promise<string> {
 }
 async function shortenAndDecorate(fullNews: string): Promise<string> {
   try {
-    const prompt = `Take this news content and create a short, engaging summary (1-2 paragraphs max). Decorate it with relevant emojis to make it fun and visually appealing for a Telegram channel post. Keep it concise and exciting:\n\n${fullNews}`;
+    const prompt = `Take this news content and create a short, engaging summary (1-2 paragraphs max),write in russian. Decorate it with relevant emojis to make it fun and visually appealing for a Telegram channel post. Keep it concise and exciting:\n\n${fullNews}`;
     const result = await model.generateContent(prompt);
     const text = typeof result.response.text === "function" ? result.response.text() : result.response.text;
     return (text as string) || "🤖 No summary available 😅";
@@ -85,3 +85,4 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
