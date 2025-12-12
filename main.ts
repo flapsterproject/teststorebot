@@ -11,6 +11,7 @@ const CHANNEL = "@testsnewschannel";
 const GEMINI_API_KEY = "AIzaSyDArry_xPlyAGz7HBU3qUBsDLxZqS7NfAY";
 const RSS_URL = "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en";
 const DOMAIN = "your-deno-deploy-domain.deno.dev"; // Replace with your Deno Deploy domain
+const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
 
 serve(async (req: Request) => {
   const url = new URL(req.url);
@@ -49,14 +50,14 @@ serve(async (req: Request) => {
     });
   }
 
-  async function getProfessionalText(desc: string): Promise<string> {
+  async function getProfessionalText(title: string, desc: string): Promise<string> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
     const body = {
       contents: [
         {
           parts: [
             {
-              text: `Rewrite this news summary to make it sound professional, engaging, and suitable for a news channel post. Keep it concise, under 300 words: ${desc}`
+              text: `Using the title "${title}" and this HTML description (which lists related articles), extract the main news story and rewrite it as a professional, engaging news summary suitable for a Telegram channel post. Keep it concise, under 300 words, and make it sound neutral and informative: ${desc}`
             }
           ]
         }
@@ -80,10 +81,10 @@ serve(async (req: Request) => {
   }
 
   // Handle /start command
-  if (message && text === "/start") {
+  if (message && text?.startsWith("/start")) {  // Changed to startsWith to handle parameters if any
     try {
       // Fetch and parse RSS
-      const rssResponse = await fetch(RSS_URL);
+      const rssResponse = await fetch(RSS_URL, { headers: { "User-Agent": USER_AGENT } });
       const xml = await rssResponse.text();
       const feed = await parseFeed(xml);
 
@@ -99,13 +100,13 @@ serve(async (req: Request) => {
       const link = entry.links[0]?.href || "";
 
       // Professionalize the description with Gemini
-      const proDesc = await getProfessionalText(desc);
+      const proDesc = await getProfessionalText(title, desc);
 
       // Fetch article page to extract image
       let imageUrl = "";
       if (link) {
         try {
-          const htmlResponse = await fetch(link);
+          const htmlResponse = await fetch(link, { headers: { "User-Agent": USER_AGENT } });
           const html = await htmlResponse.text();
           const document = new DOMParser().parseFromString(html, "text/html");
           const imageMeta = document?.querySelector('meta[property="og:image"]');
