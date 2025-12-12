@@ -34,7 +34,7 @@ async function sendMessage(chatId: string | number, text: string, replyToMessage
 // -------------------- News Generators --------------------
 async function getHottestNews(): Promise<string> {
   try {
-    const prompt = `What are the hottest news stories of today? Provide a detailed summary of the top 3-5 global news items, including key details and sources if possible.`;
+    const prompt = `What are the hottest news stories of 2025 year? Provide a detailed summary of the top 3-5 global news items, including key details and sources if possible.`;
     const result = await model.generateContent(prompt);
     const text = typeof result.response.text === "function" ? result.response.text() : result.response.text;
     return (text as string) || "🤖 No news available today 😅";
