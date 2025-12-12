@@ -8,7 +8,7 @@ import { GoogleGenerativeAI } from "npm:@google/generative-ai@^0.19.0";
 const TOKEN = Deno.env.get("BOT_TOKEN");
 const API = `https://api.telegram.org/bot${TOKEN}`;
 // -------------------- Gemini Setup --------------------
-const GEMINI_API_KEY = "AIzaSyCGyDu4yAhEgzTgQkwlF3aDudFZ3f4IaPA";
+const GEMINI_API_KEY = "AIzaSyDArry_xPlyAGz7HBU3qUBsDLxZqS7NfAY";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 // -------------------- Admins --------------------
@@ -85,6 +85,7 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
 
 
 
