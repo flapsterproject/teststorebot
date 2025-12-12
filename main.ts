@@ -1,138 +1,87 @@
 // main.ts
+// 🤖 News Admin Bot for Telegram
+// 💬 On /start (from admin in private), fetches hottest news from Gemini, sends full to @Masakoff (admin chat), shortens/decorates with emojis via second Gemini prompt, posts to @testsnewschannel
+// 🔒 Only admins can trigger /start
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
-import { parseFeed } from "https://deno.land/x/rss@0.5.6/mod.ts";
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.38/deno-dom-wasm.ts";
-
-const kv = await Deno.openKv();
+import { GoogleGenerativeAI } from "npm:@google/generative-ai@^0.19.0";
+// -------------------- Telegram Setup --------------------
 const TOKEN = Deno.env.get("BOT_TOKEN");
-const SECRET_PATH = "/teststore"; // change this if needed
-const TELEGRAM_API = `https://api.telegram.org/bot${TOKEN}`;
-const CHANNEL = "@testsnewschannel";
-const GEMINI_API_KEY = "AIzaSyDArry_xPlyAGz7HBU3qUBsDLxZqS7NfAY";
-const RSS_URL = "https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en";
-const DOMAIN = "your-deno-deploy-domain.deno.dev"; // Replace with your Deno Deploy domain
-const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36";
-
-serve(async (req: Request) => {
-  const url = new URL(req.url);
-  const pathname = url.pathname;
-
-  if (pathname !== SECRET_PATH) {
-    return new Response("Bot is running.", { status: 200 });
-  }
-
-  if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
-  }
-
-  const update = await req.json();
-  const message = update.message;
-  const chatId = message?.chat?.id;
-  const userId = message?.from?.id;
-  const text = message?.text;
-
-  if (!userId) return new Response("No user ID", { status: 200 });
-
-  // Helper functions
-  async function sendMessage(cid: number | string, txt: string, opts = {}) {
-    await fetch(`${TELEGRAM_API}/sendMessage`, {
+const API = `https://api.telegram.org/bot${TOKEN}`;
+// -------------------- Gemini Setup --------------------
+const GEMINI_API_KEY = "AIzaSyCGyDu4yAhEgzTgQkwlF3aDudFZ3f4IaPA";
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+// -------------------- Admins --------------------
+const ADMINS = ["Masakoff"]; // Add more usernames if needed
+// -------------------- Helpers --------------------
+async function sendMessage(chatId: string | number, text: string, replyToMessageId?: number) {
+  try {
+    await fetch(`${API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: cid, text: txt, ...opts }),
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        reply_to_message_id: replyToMessageId,
+        allow_sending_without_reply: true,
+        parse_mode: "HTML",
+      }),
     });
+  } catch (err) {
+    console.error("Failed to send message:", err);
   }
-
-  async function sendPhoto(cid: number | string, photo: string, opts = {}) {
-    await fetch(`${TELEGRAM_API}/sendPhoto`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: cid, photo, ...opts }),
-    });
+}
+// -------------------- News Generators --------------------
+async function getHottestNews(): Promise<string> {
+  try {
+    const prompt = `What are the hottest news stories of today? Provide a detailed summary of the top 3-5 global news items, including key details and sources if possible.`;
+    const result = await model.generateContent(prompt);
+    const text = typeof result.response.text === "function" ? result.response.text() : result.response.text;
+    return (text as string) || "🤖 No news available today 😅";
+  } catch (err) {
+    console.error("Gemini error:", err);
+    return "🤖 Error fetching news 😅";
   }
-
-  async function getProfessionalText(title: string, desc: string): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`;
-    const body = {
-      contents: [
-        {
-          parts: [
-            {
-              text: `Using the title "${title}" and this HTML description (which lists related articles), extract the main news story and rewrite it as a professional, engaging news summary suitable for a Telegram channel post. Keep it concise, under 300 words, and make it sound neutral and informative: ${desc}`
-            }
-          ]
-        }
-      ]
-    };
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      if (!res.ok) {
-        throw new Error(`Gemini API error: ${res.status}`);
-      }
-      const data = await res.json();
-      return data.candidates[0].content.parts[0].text.trim();
-    } catch (error) {
-      console.error(error);
-      return desc; // Fallback to original if Gemini fails
+}
+async function shortenAndDecorate(fullNews: string): Promise<string> {
+  try {
+    const prompt = `Take this news content and create a short, engaging summary (1-2 paragraphs max). Decorate it with relevant emojis to make it fun and visually appealing for a Telegram channel post. Keep it concise and exciting:\n\n${fullNews}`;
+    const result = await model.generateContent(prompt);
+    const text = typeof result.response.text === "function" ? result.response.text() : result.response.text;
+    return (text as string) || "🤖 No summary available 😅";
+  } catch (err) {
+    console.error("Gemini error:", err);
+    return "🤖 Error creating summary 😅";
+  }
+}
+// -------------------- Webhook Handler --------------------
+serve(async (req) => {
+  try {
+    const update = await req.json();
+    if (!update?.message && !update?.edited_message) return new Response("ok");
+    const msg = update.message || update.edited_message;
+    const chatId = String(msg.chat.id);
+    const text = msg.text || msg.caption || "";
+    const messageId = msg.message_id;
+    const username = msg.from?.username || msg.from?.first_name || "unknown";
+    const isAdmin = ADMINS.includes(username.replace("@", ""));
+    const chatType = msg.chat.type;
+    const isPrivate = chatType === "private";
+    // --- Only handle /start in private from admin ---
+    if (!isPrivate || text.trim() !== "/start") {
+      return new Response("ok");
     }
-  }
-
-  // Handle /start command
-  if (message && text?.startsWith("/start")) {  // Changed to startsWith to handle parameters if any
-    try {
-      // Fetch and parse RSS
-      const rssResponse = await fetch(RSS_URL, { headers: { "User-Agent": USER_AGENT } });
-      const xml = await rssResponse.text();
-      const feed = await parseFeed(xml);
-
-      if (feed.entries.length === 0) {
-        await sendMessage(chatId, "No news found at the moment.");
-        return new Response("OK", { status: 200 });
-      }
-
-      // Get the hottest (latest) news entry
-      const entry = feed.entries[0];
-      const title = entry.title?.value || "Untitled";
-      let desc = entry.description?.value || "No description available.";
-      const link = entry.links[0]?.href || "";
-
-      // Professionalize the description with Gemini
-      const proDesc = await getProfessionalText(title, desc);
-
-      // Fetch article page to extract image
-      let imageUrl = "";
-      if (link) {
-        try {
-          const htmlResponse = await fetch(link, { headers: { "User-Agent": USER_AGENT } });
-          const html = await htmlResponse.text();
-          const document = new DOMParser().parseFromString(html, "text/html");
-          const imageMeta = document?.querySelector('meta[property="og:image"]');
-          imageUrl = imageMeta?.getAttribute("content") || "";
-        } catch (error) {
-          console.error("Error fetching image:", error);
-        }
-      }
-
-      // Prepare caption/content
-      const content = `${title}\n\n${proDesc}\n\nSource: ${link}`;
-
-      // Publish to channel
-      if (imageUrl) {
-        await sendPhoto(CHANNEL, imageUrl, { caption: content, parse_mode: "Markdown" });
-      } else {
-        await sendMessage(CHANNEL, content, { parse_mode: "Markdown" });
-      }
-
-      // Respond to user
-      await sendMessage(chatId, "Hottest news has been published to @testsnewschannel!");
-    } catch (error) {
-      console.error(error);
-      await sendMessage(chatId, "An error occurred while fetching and publishing the news.");
+    if (!isAdmin) {
+      await sendMessage(chatId, "🚫 Only admins can use /start!", messageId);
+      return new Response("ok");
     }
+    // --- Fetch and process news ---
+    const fullNews = await getHottestNews();
+    await sendMessage(chatId, fullNews, messageId); // Send full news to admin (@Masakoff's private chat)
+    const shortNews = await shortenAndDecorate(fullNews);
+    await sendMessage("@testsnewschannel", shortNews); // Post short decorated version to channel
+  } catch (err) {
+    console.error("Error handling update:", err);
   }
-
-  return new Response("OK", { status: 200 });
+  return new Response("ok");
 });
