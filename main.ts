@@ -1,7 +1,7 @@
-// main.ts
-// 🤖 News Admin Bot for Telegram
-// 💬 On /start (from admin in private), fetches hottest news from Gemini, sends full to @Masakoff (admin chat), shortens/decorates with emojis via second Gemini prompt, posts to @testsnewschannel
-// 🔒 Only admins can trigger /start
+// 🤖 Masakoff News Bot - Fetches hottest news on /start from admin, sends raw to admin, formats with Gemini, posts to @testsnewschannel
+// 💬 Triggered only by admin in private chat with /start
+// 📅 Uses current date for "today's" news
+// 📝 Formats with HTML (bold, italic, etc.) and emojis
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai@^0.19.0";
 // -------------------- Telegram Setup --------------------
@@ -10,7 +10,7 @@ const API = `https://api.telegram.org/bot${TOKEN}`;
 // -------------------- Gemini Setup --------------------
 const GEMINI_API_KEY = "AIzaSyCGyDu4yAhEgzTgQkwlF3aDudFZ3f4IaPA";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 // -------------------- Admins --------------------
 const ADMINS = ["Masakoff"]; // Add more usernames if needed
 // -------------------- Helpers --------------------
@@ -31,27 +31,28 @@ async function sendMessage(chatId: string | number, text: string, replyToMessage
     console.error("Failed to send message:", err);
   }
 }
-// -------------------- News Generators --------------------
+// -------------------- Gemini News Functions --------------------
 async function getHottestNews(): Promise<string> {
   try {
-    const prompt = `What are the hottest news stories of today? Provide a detailed summary of the top 3-5 global news items, including key details and sources if possible.`;
+    const today = new Date().toLocaleDateString("en-US", { timeZone: "UTC" });
+    const prompt = `Provide the hottest news stories of today, ${today}. List the top 5 with brief summaries.`;
     const result = await model.generateContent(prompt);
     const text = typeof result.response.text === "function" ? result.response.text() : result.response.text;
-    return (text as string) || "🤖 No news available today 😅";
+    return text || "No news available 😅";
   } catch (err) {
     console.error("Gemini error:", err);
-    return "🤖 Error fetching news 😅";
+    return "Error fetching news 😅";
   }
 }
-async function shortenAndDecorate(fullNews: string): Promise<string> {
+async function formatNews(raw: string): Promise<string> {
   try {
-    const prompt = `Take this news content and create a short, engaging summary (1-2 paragraphs max). Decorate it with relevant emojis to make it fun and visually appealing for a Telegram channel post. Keep it concise and exciting:\n\n${fullNews}`;
+    const prompt = `Take the following news: "${raw}" and rewrite it as a short and very professional summary. Use different fonts like <b>bold</b> for titles, <i>italic</i> for emphasis or quotes, etc. Decorate with relevant emojis. Format the entire output in HTML suitable for Telegram. Keep it concise.`;
     const result = await model.generateContent(prompt);
     const text = typeof result.response.text === "function" ? result.response.text() : result.response.text;
-    return (text as string) || "🤖 No summary available 😅";
+    return text || "No formatted news available 😅";
   } catch (err) {
     console.error("Gemini error:", err);
-    return "🤖 Error creating summary 😅";
+    return "Error formatting news 😅";
   }
 }
 // -------------------- Webhook Handler --------------------
@@ -67,19 +68,20 @@ serve(async (req) => {
     const isAdmin = ADMINS.includes(username.replace("@", ""));
     const chatType = msg.chat.type;
     const isPrivate = chatType === "private";
-    // --- Only handle /start in private from admin ---
-    if (!isPrivate || text.trim() !== "/start") {
+    // --- Handle /start only from admin in private ---
+    if (isPrivate && text.trim() === "/start" && isAdmin) {
+      const rawNews = await getHottestNews();
+      await sendMessage(chatId, rawNews, messageId); // Send raw to admin
+      const formattedNews = await formatNews(rawNews);
+      await sendMessage("@testsnewschannel", formattedNews); // Post formatted to channel
+      await sendMessage(chatId, "✅ News fetched, formatted, and posted to @testsnewschannel!", messageId);
       return new Response("ok");
     }
-    if (!isAdmin) {
+    // --- Optional: Respond if not authorized ---
+    if (isPrivate && text.trim() === "/start" && !isAdmin) {
       await sendMessage(chatId, "🚫 Only admins can use /start!", messageId);
       return new Response("ok");
     }
-    // --- Fetch and process news ---
-    const fullNews = await getHottestNews();
-    await sendMessage(chatId, fullNews, messageId); // Send full news to admin (@Masakoff's private chat)
-    const shortNews = await shortenAndDecorate(fullNews);
-    await sendMessage("@testsnewschannel", shortNews); // Post short decorated version to channel
   } catch (err) {
     console.error("Error handling update:", err);
   }
