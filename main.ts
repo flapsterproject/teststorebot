@@ -6,7 +6,7 @@ import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 import { GoogleGenerativeAI } from "npm:@google/generative-ai@^0.19.0";
 // -------------------- Telegram Setup --------------------
 const TOKEN = Deno.env.get("BOT_TOKEN");
-const API = https://api.telegram.org/bot${TOKEN};
+const API = "https://api.telegram.org/bot${TOKEN}";
 // -------------------- Gemini Setup --------------------
 const GEMINI_API_KEY = "AIzaSyCGyDu4yAhEgzTgQkwlF3aDudFZ3f4IaPA";
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -85,3 +85,4 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
