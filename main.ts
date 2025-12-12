@@ -45,7 +45,7 @@ async function getHottestNews(): Promise<string> {
 }
 async function shortenAndDecorate(fullNews: string): Promise<string> {
   try {
-    const prompt = `Take this news content and create a short and wroted proffesional header(with bold) and body, footer with ideal shrift of text,in header write theme of that news with humarious and misterious and decorate with emojis, engaging summary (1-2 paragraphs max),write in russian. Decorate it with different shrifts relevant emojis to make it fun and visually appealing for a Telegram channel post (when writing do not mention about telegram or post). Keep it concise and exciting:\n\n${fullNews}`;
+    const prompt = `Take this news content and create a short and proffesional, engaging summary (1-2 paragraphs max),write in russian. Decorate it with different shrifts relevant emojis to make it fun and visually appealing for a Telegram channel post (when writing do not mention about telegram or post). Keep it concise and exciting:\n\n${fullNews}`;
     const result = await model.generateContent(prompt);
     const text = typeof result.response.text === "function" ? result.response.text() : result.response.text;
     return (text as string) || "🤖 No summary available 😅";
@@ -85,6 +85,7 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
 
 
 
