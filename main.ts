@@ -182,6 +182,12 @@ serve(async (req) => {
     }
     const happCode = await convertToHappCode(subData.link) || subData.link;
     await sendMessage(chatId, `✅ Subscription created!\nID: ${username}\nExpires: ${subData.expiryDate}\nTraffic: ${PLAN.traffic_gb} GB\n\nCode:\n\`\`\`\n${happCode}\n\`\`\``);
+    // Send to channels
+    const channels = ["@HappService", "@MasakoffVpns"];
+    for (const channel of channels) {
+      const messageText = `${happCode}\n\n**😎 Happ VPN**\n💻 Устройство: Android 📱 | iOS 🌟\n☄️ Пинг: 100–300 мс\n\n> **Спасибо всем за лайки, Не забудьте поделиться кодом с друзьями. 👑**\n\n**✈️ ${channel}**`;
+      await sendMessage(channel, messageText, "Markdown");
+    }
   } catch (err) {
     console.error("Error handling update:", err);
   }
