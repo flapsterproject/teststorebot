@@ -171,24 +171,29 @@ serve(async (req) => {
   if (req.method !== "POST") return new Response("Method Not Allowed", { status: 405 });
   try {
     const update = await req.json();
-    const msg = update.message;
-    if (!msg || msg.chat.type !== "private") return new Response("ok");
+    const msg = update.message || update.channel_post;
+    if (!msg) return new Response("ok");
     const chatId = String(msg.chat.id);
     const text = msg.text?.trim() || "";
-    if (text !== "/start") {
-      await sendMessage(chatId, "Use /start to get your subscription.");
+    const isPrivate = msg.chat.type === "private";
+    const isAdmin = isPrivate && msg.from?.username === "Masakoff";
+    const isHelperChannel = msg.chat.type === "channel" && msg.chat.username === "Vpnchannelshelperchannel";
+    if (!((isAdmin && text === "/start") || (isHelperChannel && text === "/start"))) {
+      if (isAdmin) {
+        await sendMessage(chatId, "Use /start to get your subscription.");
+      }
       return new Response("ok");
     }
-    await sendMessage(chatId, "⏳ Deleting and creating subscription for Kanallar...");
+    if (isPrivate) await sendMessage(chatId, "⏳ Deleting and creating subscription for Kanallar...");
     const username = "Kanallar";
     await removeMarzbanUser(username);
     const subData = await createMarzbanUser(username, PLAN);
     if (!subData) {
-      await sendMessage(chatId, "❌ Failed to create subscription. Try later.");
+      if (isPrivate) await sendMessage(chatId, "❌ Failed to create subscription. Try later.");
       return new Response("ok");
     }
     const happCode = await convertToHappCode(subData.link) || subData.link;
-    await sendMessage(chatId, `✅ Subscription created!\nID: ${username}\nExpires: ${subData.expiryDate}\nTraffic: ${PLAN.traffic_gb} GB\n\nCode:\n\`\`\`\n${happCode}\n\`\`\``);
+    if (isPrivate) await sendMessage(chatId, `✅ Subscription created!\nID: ${username}\nExpires: ${subData.expiryDate}\nTraffic: ${PLAN.traffic_gb} GB\n\nCode:\n\`\`\`\n${happCode}\n\`\`\``);
     // Send to channels
     const channels = ["@HappService", "@MasakoffVpns"];
     for (const channel of channels) {
