@@ -25,7 +25,7 @@ const PLAN = {
 // -------------------- Helpers --------------------
 async function sendMessage(chatId: string, text: string, parseMode = "Markdown") {
   try {
-    await fetch(`${API}/sendMessage`, {
+    const res = await fetch(`${API}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -34,8 +34,15 @@ async function sendMessage(chatId: string, text: string, parseMode = "Markdown")
         parse_mode: parseMode,
       }),
     });
+    const data = await res.json();
+    if (!data.ok) {
+      console.error("Failed to send message:", data);
+      return null;
+    }
+    return data.result;
   } catch (err) {
     console.error("Failed to send message:", err);
+    return null;
   }
 }
 async function getMarzbanToken(): Promise<string | null> {
@@ -185,8 +192,23 @@ serve(async (req) => {
     // Send to channels
     const channels = ["@HappService", "@MasakoffVpns"];
     for (const channel of channels) {
-      const messageText = `\`\`\`\n${happCode}\n\`\`\`\n\n**😎 Happ VPN**\n**💻 Устройство: Android 📱 | iOS 🌟**\n**☄️ Пинг: 100–300 мс**\n\n> **Спасибо всем за лайки, Не забудьте поделиться кодом с друзьями. 👑**\n\n**✈️ ${channel}**`;
-      await sendMessage(channel, messageText, "Markdown");
+      const messageText = `\`\`\`\n${happCode}\n\`\`\`\n\n**😎 Happ VPN\n💻 Устройство: Android 📱 | iOS 🌟\n☄️ Пинг: 100–300 мс**\n\n> **Спасибо всем за лайки, Не забудьте поделиться кодом с друзьями. 👑**\n\n**✈️ ${channel}**`;
+      const sentMessage = await sendMessage(channel, messageText, "Markdown");
+      if (sentMessage) {
+        try {
+          await fetch(`${API}/setMessageReaction`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: channel,
+              message_id: sentMessage.message_id,
+              reaction: [{ type: "emoji", emoji: "❤" }],
+            }),
+          });
+        } catch (err) {
+          console.error("Failed to set reaction:", err);
+        }
+      }
     }
   } catch (err) {
     console.error("Error handling update:", err);
