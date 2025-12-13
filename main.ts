@@ -197,7 +197,7 @@ serve(async (req) => {
     // Send to channels
     const channels = ["@HappService", "@MasakoffVpns"];
     for (const channel of channels) {
-      const messageText = `\`\`\`\n${happCode}\n\`\`\`**😎 Happ VPN**\n**💻 Устройство: Android 📱 | iOS 🌟**\n**☄️ Пинг: 100–300 мс**\n\n\`\`\`\nСпасибо всем за лайки, Не забудьте поделиться кодом с друзьями. 👑\n\`\`\`**✈️ ${channel}**`;
+      const messageText = `\`\`\`\n${happCode}\n\`\`\`**😎 Happ VPN**\n**💻 Устройство: Android 📱 | iOS 🌟**\n**☄️ Пинг: 100–300 мс**\n\n\`\`\`\nСпасибо всем за лайки, Не забудьте поделиться кодом с друзьями. 👑\n\`\`\`\n**✈️ ${channel}**`;
       const sentMessage = await sendMessage(channel, messageText, "Markdown");
       if (sentMessage) {
         try {
@@ -220,4 +220,5 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
 
