@@ -101,8 +101,8 @@ async function createMarzbanUser(username: string, plan: typeof PLAN): Promise<{
   const profileTitleStr = `${username}`;
   const profileTitleB64 = encodeBase64(profileTitleStr);
   const announceB64 = encodeBase64("@PabloTest_RoBot");
-  const supportUrl = "https://t.me/TheOldPablo";
-  const profileWebPageUrl = "https://t.me/Pablo_Comminuty";
+  const supportUrl = "https://t.me/Masakoff";
+  const profileWebPageUrl = "https://t.me/MasakoffVpns";
   const payload = {
     username: username,
     proxies: { shadowsocks: { method: "aes-256-gcm", password: `ss_${username}_${Math.floor(Math.random() * 900) + 100}` } },
@@ -192,7 +192,7 @@ serve(async (req) => {
     // Send to channels
     const channels = ["@HappService", "@MasakoffVpns"];
     for (const channel of channels) {
-      const messageText = `\`\`\`\n${happCode}\n\`\`\`\n**😎 Happ VPN\n💻 Устройство: Android 📱 | iOS 🌟\n☄️ Пинг: 100–300 мс**\n\n> **Спасибо всем за лайки, Не забудьте поделиться кодом с друзьями. 👑**\n\n**✈️ ${channel}**`;
+      const messageText = `\`\`\`\n${happCode}\n\`\`\`**😎 Happ VPN\n💻 Устройство: Android 📱 | iOS 🌟\n☄️ Пинг: 100–300 мс**\n\n> **Спасибо всем за лайки, Не забудьте поделиться кодом с друзьями. 👑**\n\n**✈️ ${channel}**`;
       const sentMessage = await sendMessage(channel, messageText, "Markdown");
       if (sentMessage) {
         try {
@@ -215,3 +215,4 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
