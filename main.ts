@@ -63,11 +63,17 @@ serve(async (req) => {
       return new Response("ok");
     }
 
-    // --- Determine sender ---
-    const sender = from?.username || authorSignature || null;
+    // --- Determine sender, strip @ if present ---
+    let sender = from?.username || authorSignature || null;
+    if (sender) {
+      sender = sender.replace('@', '');
+    }
+
+    console.log(`Received channel post: from.username=${from?.username}, author_signature=${authorSignature}, determined sender=${sender}`);
 
     // --- Check if sender is exempt ---
     if (sender && EXEMPT_ADMINS.includes(sender)) {
+      console.log(`Exempt sender: ${sender}, not deleting message ${messageId}`);
       return new Response("ok"); // Exempt, do not delete
     }
 
