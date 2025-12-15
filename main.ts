@@ -8,7 +8,7 @@ const TOKEN = Deno.env.get("BOT_TOKEN");
 const API = `https://api.telegram.org/bot${TOKEN}`;
 
 // -------------------- Exempt Admins --------------------
-const EXEMPT_ADMINS = ["Masakoff", "InsideAds_bot", "sellbotapp", "MasakoffAdminBot", "Auto_channelpost_bot"];
+const EXEMPT_ADMINS = ["Masakoffa", "InsideAds_bot", "sellbotapp", "MasakoffAdminBot", "Auto_channelpost_bot"];
 
 // -------------------- Webhook Handler --------------------
 serve(async (req) => {
@@ -57,3 +57,4 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
