@@ -1,15 +1,12 @@
 // main.ts
 // 🤖 Auto Delete Bot for Telegram
-// Deletes every new post in any channel the bot is added to after 10 seconds if the post does not contain at least one of the specified keywords (case-insensitive), except for posts from exempt admins: @Masakoff, @InsideAds_bot, @sellbotapp, @MasakoffAdminBot, @Auto_channelpost_bot
+// Deletes every new post in any channel the bot is added to after 10 seconds if the post does not contain at least one of the specified keywords (case-insensitive)
 // Uses Deno KV for reliable deletion scheduling
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 // -------------------- Telegram Setup --------------------
 const TOKEN = Deno.env.get("BOT_TOKEN");
 const API = `https://api.telegram.org/bot${TOKEN}`;
-
-// -------------------- Exempt Admins --------------------
-const EXEMPT_ADMINS = ["Masakoff", "InsideAds_bot", "sellbotapp", "MasakoffAdminBot", "Auto_channelpost_bot"];
 
 // -------------------- Keywords to Keep --------------------
 const KEEP_KEYWORDS = ["InsideAds", "Kod işläp dur like gysganmaň", "☄️ Пинг: 100–300 мс", "#реклама", "Перейти"];
@@ -58,8 +55,6 @@ serve(async (req) => {
     const msg = update.channel_post;
     const chatId = msg.chat.id; // Numeric ID
     const messageId = msg.message_id;
-    const from = msg.from;
-    const authorSignature = msg.author_signature;
     const text = (msg.text || msg.caption || "").toLowerCase();
 
     // --- Only handle new posts in channels ---
@@ -67,19 +62,7 @@ serve(async (req) => {
       return new Response("ok");
     }
 
-    // --- Determine sender, strip @ if present ---
-    let sender = from?.username || authorSignature || null;
-    if (sender) {
-      sender = sender.replace('@', '');
-    }
-
-    console.log(`Received channel post: from.username=${from?.username}, author_signature=${authorSignature}, determined sender=${sender}, text=${text.substring(0, 50)}...`);
-
-    // --- Check if sender is exempt ---
-    if (sender && EXEMPT_ADMINS.includes(sender)) {
-      console.log(`Exempt sender: ${sender}, not deleting message ${messageId}`);
-      return new Response("ok"); // Exempt, do not delete
-    }
+    console.log(`Received channel post: text=${text.substring(0, 50)}...`);
 
     // --- Check if text contains at least one keep keyword (case-insensitive) ---
     const hasKeyword = KEEP_KEYWORDS.some(kw => text.includes(kw.toLowerCase()));
