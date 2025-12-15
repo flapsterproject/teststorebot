@@ -1,6 +1,6 @@
 // main.ts
 // 🤖 Auto Delete Bot for Telegram
-// Deletes every new post in any channel the bot is added to after 10 seconds, except for posts from exempt admins: @Masakoff, @InsideAds_bot, @sellbotapp, @MasakoffAdminBot, @Auto_channelpost_bot
+// Deletes every new post in any channel the bot is added to after 10 seconds if the post does not contain at least one of the specified keywords, except for posts from exempt admins: @Masakoff, @InsideAds_bot, @sellbotapp, @MasakoffAdminBot, @Auto_channelpost_bot
 // Uses Deno KV for reliable deletion scheduling
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
@@ -10,6 +10,9 @@ const API = `https://api.telegram.org/bot${TOKEN}`;
 
 // -------------------- Exempt Admins --------------------
 const EXEMPT_ADMINS = ["Masakoff", "InsideAds_bot", "sellbotapp", "MasakoffAdminBot", "Auto_channelpost_bot"];
+
+// -------------------- Keywords to Keep --------------------
+const KEEP_KEYWORDS = ["InsideAds", "Kod işläp dur like gysganmaň", "☄️ Пинг: 100–300 мс", "#реклама", "Перейти"];
 
 // -------------------- Deno KV Setup --------------------
 const kv = await Deno.openKv();
@@ -57,6 +60,7 @@ serve(async (req) => {
     const messageId = msg.message_id;
     const from = msg.from;
     const authorSignature = msg.author_signature;
+    const text = msg.text || msg.caption || "";
 
     // --- Only handle new posts in channels ---
     if (msg.chat.type !== "channel") {
@@ -69,12 +73,19 @@ serve(async (req) => {
       sender = sender.replace('@', '');
     }
 
-    console.log(`Received channel post: from.username=${from?.username}, author_signature=${authorSignature}, determined sender=${sender}`);
+    console.log(`Received channel post: from.username=${from?.username}, author_signature=${authorSignature}, determined sender=${sender}, text=${text.substring(0, 50)}...`);
 
     // --- Check if sender is exempt ---
     if (sender && EXEMPT_ADMINS.includes(sender)) {
       console.log(`Exempt sender: ${sender}, not deleting message ${messageId}`);
       return new Response("ok"); // Exempt, do not delete
+    }
+
+    // --- Check if text contains at least one keep keyword ---
+    const hasKeyword = KEEP_KEYWORDS.some(kw => text.includes(kw));
+    if (hasKeyword) {
+      console.log(`Message ${messageId} contains keep keyword, not deleting`);
+      return new Response("ok"); // Has keyword, do not delete
     }
 
     // --- Schedule deletion in KV (delete after 10 seconds) ---
