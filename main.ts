@@ -1,6 +1,6 @@
 // main.ts
 // 🤖 Auto Delete Bot for Telegram
-// Deletes every new post in any channel the bot is added to after 10 seconds if the post does not contain at least one of the specified keywords, except for posts from exempt admins: @Masakoff, @InsideAds_bot, @sellbotapp, @MasakoffAdminBot, @Auto_channelpost_bot
+// Deletes every new post in any channel the bot is added to after 10 seconds if the post does not contain at least one of the specified keywords (case-insensitive), except for posts from exempt admins: @Masakoff, @InsideAds_bot, @sellbotapp, @MasakoffAdminBot, @Auto_channelpost_bot
 // Uses Deno KV for reliable deletion scheduling
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
@@ -60,7 +60,7 @@ serve(async (req) => {
     const messageId = msg.message_id;
     const from = msg.from;
     const authorSignature = msg.author_signature;
-    const text = msg.text || msg.caption || "";
+    const text = (msg.text || msg.caption || "").toLowerCase();
 
     // --- Only handle new posts in channels ---
     if (msg.chat.type !== "channel") {
@@ -81,8 +81,8 @@ serve(async (req) => {
       return new Response("ok"); // Exempt, do not delete
     }
 
-    // --- Check if text contains at least one keep keyword ---
-    const hasKeyword = KEEP_KEYWORDS.some(kw => text.includes(kw));
+    // --- Check if text contains at least one keep keyword (case-insensitive) ---
+    const hasKeyword = KEEP_KEYWORDS.some(kw => text.includes(kw.toLowerCase()));
     if (hasKeyword) {
       console.log(`Message ${messageId} contains keep keyword, not deleting`);
       return new Response("ok"); // Has keyword, do not delete
