@@ -56,14 +56,18 @@ serve(async (req) => {
     const chatId = msg.chat.id; // Numeric ID
     const messageId = msg.message_id;
     const from = msg.from;
+    const authorSignature = msg.author_signature;
 
     // --- Only handle new posts in channels ---
     if (msg.chat.type !== "channel") {
       return new Response("ok");
     }
 
-    // --- Check if sender exists and is not exempt ---
-    if (from && from.username && EXEMPT_ADMINS.includes(from.username)) {
+    // --- Determine sender ---
+    const sender = from?.username || authorSignature || null;
+
+    // --- Check if sender is exempt ---
+    if (sender && EXEMPT_ADMINS.includes(sender)) {
       return new Response("ok"); // Exempt, do not delete
     }
 
