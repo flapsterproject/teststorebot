@@ -20,8 +20,9 @@ async function processDeletes() {
     for await (const entry of kv.list({ prefix: ["deletes"] })) {
       const dueTime = entry.value as number;
       if (dueTime <= Date.now()) {
-        const [, chatIdStr, messageId] = entry.key as [string, string, number];
+        const [, chatIdStr, messageIdStr] = entry.key as [string, string, string];
         const chatId = Number(chatIdStr);
+        const messageId = Number(messageIdStr);
         try {
           await fetch(`${API}/deleteMessage`, {
             method: "POST",
@@ -68,8 +69,9 @@ serve(async (req) => {
     }
     // --- Schedule deletion in KV (delete after 10 seconds) ---
     const chatIdStr = String(chatId);
+    const messageIdStr = String(messageId);
     const dueTime = Date.now() + 10000; // 10 seconds from now
-    await kv.set(["deletes", chatIdStr, messageId], dueTime);
+    await kv.set(["deletes", chatIdStr, messageIdStr], dueTime);
     console.log(`Scheduled deletion for message ${messageId} in chat ${chatId} at ${new Date(dueTime).toISOString()}`);
   } catch (err) {
     console.error("Error handling update:", err);
