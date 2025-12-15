@@ -3,13 +3,17 @@
 // Deletes every new post in any channel the bot is added to after 10 seconds if the post does not contain at least one of the specified keywords (case-insensitive)
 // Uses Deno KV for reliable deletion scheduling
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
+
 // -------------------- Telegram Setup --------------------
 const TOKEN = Deno.env.get("BOT_TOKEN");
 const API = `https://api.telegram.org/bot${TOKEN}`;
+
 // -------------------- Keywords to Keep --------------------
 const KEEP_KEYWORDS = ["InsideAds", "Kod işläp dur like gysganmaň", "☄️ Пинг: 100–300 мс", "#реклама", "Перейти"];
+
 // -------------------- Deno KV Setup --------------------
 const kv = await Deno.openKv();
+
 // -------------------- Deletion Processor --------------------
 async function processDeletes() {
   try {
@@ -38,8 +42,10 @@ async function processDeletes() {
     console.error("Error processing deletes:", err);
   }
 }
+
 // Run deletion processor every 5 seconds
 setInterval(processDeletes, 5000);
+
 // -------------------- Webhook Handler --------------------
 serve(async (req) => {
   try {
@@ -70,5 +76,6 @@ serve(async (req) => {
   }
   return new Response("ok");
 });
+
 // Initial run to clean up any pending deletes
 processDeletes();
