@@ -1,6 +1,7 @@
 // main.ts
 // 🤖 Auto Delete Bot for Telegram
-// Deletes every new post by admins in any channel the bot is added to after 1 minute, except for exempt admins: @Masakoff, @InsideAds_bot, @sellbotapp, @MasakoffAdminBot, @Auto_channelpost_bot
+// Deletes every new post in any channel the bot is added to after 10 seconds, except for posts from exempt admins: @Masakoff, @InsideAds_bot, @sellbotapp, @MasakoffAdminBot, @Auto_channelpost_bot
+// Uses Deno KV for reliable deletion scheduling
 import { serve } from "https://deno.land/std@0.224.0/http/server.ts";
 
 // -------------------- Telegram Setup --------------------
@@ -8,7 +9,42 @@ const TOKEN = Deno.env.get("BOT_TOKEN");
 const API = `https://api.telegram.org/bot${TOKEN}`;
 
 // -------------------- Exempt Admins --------------------
-const EXEMPT_ADMINS = ["Masakoffa", "InsideAds_bot", "sellbotapp", "MasakoffAdminBot", "Auto_channelpost_bot"];
+const EXEMPT_ADMINS = ["Masakoff", "InsideAds_bot", "sellbotapp", "MasakoffAdminBot", "Auto_channelpost_bot"];
+
+// -------------------- Deno KV Setup --------------------
+const kv = await Deno.openKv();
+
+// -------------------- Deletion Processor --------------------
+async function processDeletes() {
+  try {
+    for await (const entry of kv.list({ prefix: ["deletes"] })) {
+      const dueTime = entry.value as number;
+      if (dueTime <= Date.now()) {
+        const [, chatIdStr, messageId] = entry.key as [string, string, number];
+        const chatId = Number(chatIdStr);
+        try {
+          await fetch(`${API}/deleteMessage`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              chat_id: chatId,
+              message_id: messageId,
+            }),
+          });
+          console.log(`Deleted message ${messageId} in chat ${chatId}`);
+        } catch (deleteErr) {
+          console.error(`Failed to delete message ${messageId} in chat ${chatId}:`, deleteErr);
+        }
+        await kv.delete(entry.key);
+      }
+    }
+  } catch (err) {
+    console.error("Error processing deletes:", err);
+  }
+}
+
+// Run deletion processor every 5 seconds
+setInterval(processDeletes, 5000);
 
 // -------------------- Webhook Handler --------------------
 serve(async (req) => {
@@ -27,30 +63,15 @@ serve(async (req) => {
     }
 
     // --- Check if sender exists and is not exempt ---
-    if (!from || !from.username) {
-      return new Response("ok"); // Anonymous or no sender
-    }
-
-    const username = from.username;
-    if (EXEMPT_ADMINS.includes(username)) {
+    if (from && from.username && EXEMPT_ADMINS.includes(from.username)) {
       return new Response("ok"); // Exempt, do not delete
     }
 
-    // --- Schedule deletion after 1 minute (60000 ms) ---
-    setTimeout(async () => {
-      try {
-        await fetch(`${API}/deleteMessage`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            chat_id: chatId,
-            message_id: messageId,
-          }),
-        });
-      } catch (err) {
-        console.error("Failed to delete message:", err);
-      }
-    }, 60000);
+    // --- Schedule deletion in KV (delete after 10 seconds) ---
+    const chatIdStr = String(chatId);
+    const dueTime = Date.now() + 10000; // 10 seconds from now
+    await kv.set(["deletes", chatIdStr, messageId], dueTime);
+    console.log(`Scheduled deletion for message ${messageId} in chat ${chatId} at ${new Date(dueTime).toISOString()}`);
 
   } catch (err) {
     console.error("Error handling update:", err);
@@ -58,3 +79,5 @@ serve(async (req) => {
   return new Response("ok");
 });
 
+// Initial run to clean up any pending deletes
+processDeletes();
