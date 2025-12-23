@@ -9,7 +9,7 @@ const TOKEN = Deno.env.get("BOT_TOKEN");
 const API = `https://api.telegram.org/bot${TOKEN}`;
 
 // -------------------- Keywords to Keep --------------------
-const KEEP_KEYWORDS = ["InsideAds", "Kod işläp dur like gysganmaň", "☄️ Пинг: 100–300 мс", "#реклама", "Перейти", "😎 Happ VPN"];
+const KEEP_KEYWORDS = ["InsideAds","Ставьте лайки", "Kod işläp dur like gysganmaň", "☄️ Пинг: 100–300 мс", "#реклама", "Перейти", "😎 Happ VPN"];
 
 // -------------------- Deno KV Setup --------------------
 const kv = await Deno.openKv();
@@ -81,4 +81,5 @@ serve(async (req) => {
 
 // Initial run to clean up any pending deletes
 processDeletes();
+
 
